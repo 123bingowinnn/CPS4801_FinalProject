@@ -1,3 +1,4 @@
+# This Whole Project and code was finished by Xubin Sun
 import os
 import shutil
 import random
@@ -15,7 +16,7 @@ from torch.optim.lr_scheduler import OneCycleLR
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# ============ 配置 ============
+# ============ Setting ============
 data_root = '/root/autodl-tmp/CPS4801'
 class_dirs = {
     'no_sign':      os.path.join(data_root, 'COVID-19_no_infection_sign'),
@@ -29,7 +30,7 @@ img_size    = 224
 patience    = 5
 device      = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# ============ 准备数据 ============
+# ============ Data Preparation ============
 if os.path.exists(base_dir):
     shutil.rmtree(base_dir)
 for lbl, src in class_dirs.items():
@@ -39,7 +40,7 @@ for lbl, src in class_dirs.items():
         if fn.lower().endswith(('.png','jpg','jpeg')):
             shutil.copy(os.path.join(src, fn), os.path.join(dst, fn))
 
-# ============ 变换定义 ============
+# ============ Data Transformation ============
 train_tf = transforms.Compose([
     transforms.RandomResizedCrop(img_size, scale=(0.8,1.0)),
     transforms.RandomHorizontalFlip(),
@@ -72,7 +73,7 @@ class FocalLoss(nn.Module):
             loss = (1 - pt)**self.gamma * ce
         return loss.mean() if self.reduction=='mean' else loss.sum()
 
-# ============ 模型定义 ============
+# ============ Model Prepare ============
 class CustomResNet50(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
@@ -85,13 +86,13 @@ class CustomResNet50(nn.Module):
     def forward(self, x):
         return self.backbone(x)
 
-# ============ 加载全数据集 ============
+# ============ Load Whole Dataset ============
 full_ds = datasets.ImageFolder(base_dir, transform=train_tf)
 labels  = [s[1] for s in full_ds.samples]
 classes = full_ds.classes
 print("Classes:", classes)
 
-# ============ 5折交叉验证 ============
+# ============ K-Fold ============
 skf = StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=42)
 best_fold, best_acc = None, 0.0
 
@@ -158,16 +159,16 @@ for fold, (train_idx, val_idx) in enumerate(skf.split(np.zeros(len(labels)), lab
 
 print(f"\n>> Best fold: {best_fold} with Val Acc: {best_acc:.4f}")
 
-# ============ 全数据重新训练 ============
+# ============ Re-training with all data ============
 print("\n=== Final training on full dataset with best hyperparameters ===")
 full_train_ds = datasets.ImageFolder(base_dir, transform=train_tf)
 full_val_ds   = datasets.ImageFolder(base_dir, transform=val_tf)
 
-# 打印类别统计信息
+# Print category statistics information
 full_labels = [s[1] for s in full_train_ds.samples]
 print("Full dataset label count:", Counter(full_labels))
 
-# 构建权重 & 采样器
+# Build weights & sampler
 cnts = Counter(full_labels)
 weights = [1.0 / cnts[l] for l in full_labels]
 sampler = WeightedRandomSampler(weights, num_samples=len(weights), replacement=True)
@@ -178,7 +179,7 @@ class_weight = torch.tensor(class_weight).to(device)
 full_train_loader = DataLoader(full_train_ds, batch_size=batch_size, sampler=sampler, num_workers=4)
 full_val_loader = DataLoader(full_val_ds, batch_size=batch_size, shuffle=False, num_workers=4)
 
-# 模型 & 损失 & 优化器
+# Model & Loss & Optimizer
 final_model = CustomResNet50(num_classes=len(classes)).to(device)
 final_model.load_state_dict(torch.load(f'best_fold{best_fold}.pth'))
 final_criterion = FocalLoss(gamma=2.0, alpha=class_weight)
@@ -212,7 +213,7 @@ with torch.no_grad():
 print("\n=== Final Classification Report on Entire Dataset ===")
 print(classification_report(all_true, all_preds, target_names=classes))
 
-# 混淆矩阵
+# Confusion Matrix
 cm = confusion_matrix(all_true, all_preds)
 sns.heatmap(cm, annot=True, fmt='d', xticklabels=classes, yticklabels=classes, cmap='Blues')
 plt.xlabel('Predicted')
