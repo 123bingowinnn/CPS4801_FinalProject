@@ -1,3 +1,4 @@
+# This whole project was finished by Xubin Sun
 import os
 import random
 import torch
@@ -7,7 +8,7 @@ from torch.utils.data import DataLoader, random_split
 from sklearn.metrics import classification_report
 
 # ============================
-# 1. 配置参数
+# 1. Setting
 # ============================
 data_root = '/root/autodl-tmp/CPS4801'
 class_dirs = {
@@ -21,10 +22,10 @@ learning_rate = 1e-4
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # ============================
-# 2. 构建 ImageFolder 结构
+# 2.Build the ImageFolder structure
 # ============================
-# 将两个类别的文件夹临时映射到一个统一 root 下
-# ImageFolder 要求 data_root/类名/图片.jpg
+# Temporarily map two categories of folders to a unified root directory
+# ImageFolder requires data_root/Class_Name/Photo.jpg format
 tmp_root = '/root/autodl-tmp/CPS4801/dataset_for_train'
 if os.path.exists(tmp_root):
     # 如果之前跑过，先清空
@@ -38,10 +39,10 @@ for cls_name, src_dir in class_dirs.items():
         if fname.lower().endswith(('.png', '.jpg', '.jpeg')):
             src_path = os.path.join(src_dir, fname)
             dst_path = os.path.join(dst_dir, fname)
-            os.symlink(src_path, dst_path)  # 建立软链接，节省空间
+            os.symlink(src_path, dst_path)  
 
 # ============================
-# 3. 数据增广与加载
+# 3. Data Augmentation and Loading
 # ============================
 transform = transforms.Compose([
     transforms.Resize((img_size, img_size)),
@@ -55,7 +56,7 @@ full_ds = datasets.ImageFolder(tmp_root, transform=transform)
 class_names = full_ds.classes  # ['limited_sign', 'no_sign']
 print("Classes:", class_names)
 
-# 按 70/15/15 划分
+# Divided in the ratio of 70/15/15
 total = len(full_ds)
 n_train = int(0.7 * total)
 n_val   = int(0.15 * total)
@@ -68,7 +69,7 @@ val_loader   = DataLoader(val_ds,   batch_size=batch_size, shuffle=False, num_wo
 test_loader  = DataLoader(test_ds,  batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=True)
 
 # ============================
-# 4. 构建模型
+# 4. Model Setting
 # ============================
 model = models.resnet50(pretrained=True)
 model.fc = nn.Linear(model.fc.in_features, len(class_names))
@@ -78,7 +79,7 @@ criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 # ============================
-# 5. 训练与验证
+# 5. Training and Validation
 # ============================
 for epoch in range(1, num_epochs+1):
     model.train()
@@ -109,7 +110,7 @@ for epoch in range(1, num_epochs+1):
     print(f"[Epoch {epoch:02d}/{num_epochs}] Train Acc: {train_acc:.4f}  Val Acc: {val_acc:.4f}")
 
 # ============================
-# 6. 测试评估
+# 6. test and evaluation
 # ============================
 model.eval()
 all_preds, all_labels = [], []
